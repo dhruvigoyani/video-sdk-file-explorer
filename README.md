@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application currently displays a heading; UI features will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. A React provider and hook connect consumers to the SDK. The application currently displays a heading; UI features will follow in later commits.
 
 ## Technology stack
 
@@ -38,6 +38,8 @@ History tests cover undo/redo for every mutation, nested restoration, branching,
 failed operations, no-ops, ID stability, and independent histories.
 Subscription tests cover notifications, cleanup, duplicate registration, invalid
 listeners, listener errors, and data isolation.
+React integration tests cover initial state, SDK-driven updates, undo/redo,
+subscription cleanup, StrictMode, SDK replacement, and invalid hook usage.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -231,8 +233,41 @@ state rather than mutate the SDK during delivery. Listener return values are
 ignored; asynchronous callbacks and rejected promises are not managed by the
 SDK. Consumers must unsubscribe when they no longer need updates.
 
-This phase has no custom initial-data input or bonus
-features. The React app is not connected to the SDK yet.
+## React integration
+
+The entry point creates one SDK instance outside the React render lifecycle and
+passes it to `FileExplorerProvider`. SDK changes update a shared read snapshot
+containing `{ sdk, structure, canUndo, canRedo }`. Consumers access this value
+through `useFileExplorer()`; using the hook outside the provider throws a
+descriptive error.
+
+```jsx
+import { useFileExplorer } from './src/hooks/useFileExplorer.js';
+
+function RootName() {
+  const { structure } = useFileExplorer();
+  return <h2>{structure.name}</h2>;
+}
+```
+
+The provider takes `sdk` and `children` props. Keep the SDK instance stable
+instead of constructing it during each parent render. Multiple consumers share
+one subscription. The effect depends on the SDK instance, unsubscribes during
+cleanup, and reconnects if that instance changes. It also refreshes after
+subscribing to catch changes between the initial render and effect setup. This
+adds one reconciliation update on setup; ordinary parent rerenders keep the same
+context value until the next SDK notification. StrictMode's effect replay cleans
+up the previous listener before reconnecting.
+
+React stores only the SDK's detached read snapshot here; all file-management
+operations still run through the SDK. Consumers should treat snapshots as
+read-only and handle SDK errors where actions are initiated. The provider does
+not expose setters or duplicate validation, history, or search logic. Selection,
+expanded folders, action errors, and other UI state will be added with the UI.
+
+This phase has no custom initial-data input or bonus features. The provider is
+wired into the app entry point; file tree and action controls are not implemented
+yet.
 
 ## Formatting and Git hooks
 
