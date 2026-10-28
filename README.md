@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. A React provider and hook connect consumers to the SDK. The application currently displays a heading; UI features will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion and single-item selection. Action controls, search controls, and panels will follow in later commits.
 
 ## Technology stack
 
@@ -40,6 +40,8 @@ Subscription tests cover notifications, cleanup, duplicate registration, invalid
 listeners, listener errors, and data isolation.
 React integration tests cover initial state, SDK-driven updates, undo/redo,
 subscription cleanup, StrictMode, SDK replacement, and invalid hook usage.
+Tree tests cover recursive expansion, selection, keyboard buttons, SDK-driven
+updates, deletion cleanup, and restoration through undo/redo.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -262,12 +264,46 @@ up the previous listener before reconnecting.
 React stores only the SDK's detached read snapshot here; all file-management
 operations still run through the SDK. Consumers should treat snapshots as
 read-only and handle SDK errors where actions are initiated. The provider does
-not expose setters or duplicate validation, history, or search logic. Selection,
-expanded folders, action errors, and other UI state will be added with the UI.
+not expose setters or duplicate validation, history, or search logic.
 
-This phase has no custom initial-data input or bonus features. The provider is
-wired into the app entry point; file tree and action controls are not implemented
-yet.
+## File tree and rendering
+
+`FileExplorer` consumes the SDK snapshot and owns the selected item ID and a set
+of expanded folder IDs. The root starts expanded, other folders start collapsed,
+and nothing is selected. Expansion and selection have separate native buttons,
+with `aria-expanded` and `aria-pressed` exposing their states. Nested lists retain
+the hierarchy, and native buttons support Tab, Enter, and Space without a custom
+tree keyboard model.
+
+Selecting a folder does not expand it. Collapsing an ancestor hides its
+descendants but preserves their selection and expansion. Renaming or moving
+items preserves UI state by ID. If the selected item is deleted, directly or
+through an ancestor, selection clears. Deleted folder IDs are removed from the
+expanded set. Undo restores data without restoring discarded UI selection or
+expansion, so restored folders start collapsed. Newly created folders also
+start collapsed. A status line identifies the selected item even when hidden
+under a collapsed folder.
+
+`FileTree` recursively renders only visible branches and logs
+`FileTree render:` with each item's ID. `FileTreeRow` is memoized and receives
+primitive item values, expansion and selection booleans, and stable callbacks.
+Recursive containers still traverse visible nodes when UI state changes, while
+unchanged rows can skip rendering. Selection changes update the old and new
+selected rows; folder toggles update that folder's row and mount or unmount its
+descendants. SDK mutations replace the read snapshot, but unchanged row props
+can still compare equal. No custom deep comparisons or structural-sharing
+library is needed.
+
+Use the browser console while expanding, selecting, renaming, creating, and
+deleting through the SDK to observe the recursive logs. Development StrictMode
+may log render calls more than once; logs reflect render attempts rather than
+DOM changes. Search controls are not implemented yet, so search-query rendering
+observations will be added with that UI. Tree state stays inside `FileExplorer`
+instead of updating the provider or the rest of the app for every selection.
+
+This phase has no custom initial-data input or bonus features. Mutation controls,
+search controls, details and activity panels, and undo/redo buttons are not
+implemented yet.
 
 ## Formatting and Git hooks
 
