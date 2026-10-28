@@ -49,6 +49,83 @@ export class FileExplorerSDK {
     return item ? { ...item } : null;
   }
 
+  search(query = '', options = {}) {
+    if (typeof query !== 'string') {
+      throw new TypeError('Search query must be a string.');
+    }
+    if (
+      options === null ||
+      typeof options !== 'object' ||
+      Array.isArray(options)
+    ) {
+      throw new TypeError('Search options must be an object.');
+    }
+
+    const allowedOptions = ['type', 'sortBy', 'sortOrder', 'page', 'pageSize'];
+    for (const key of Object.keys(options)) {
+      if (!allowedOptions.includes(key)) {
+        throw new TypeError(`Unknown search option "${key}".`);
+      }
+    }
+
+    const {
+      type = 'all',
+      sortBy = 'name',
+      sortOrder = 'asc',
+      page = 1,
+      pageSize = 10,
+    } = options;
+
+    if (!['all', 'file', 'folder'].includes(type)) {
+      throw new TypeError('Search type must be "all", "file", or "folder".');
+    }
+    if (!['name', 'type', 'location'].includes(sortBy)) {
+      throw new TypeError(
+        'Search sortBy must be "name", "type", or "location".',
+      );
+    }
+    if (!['asc', 'desc'].includes(sortOrder)) {
+      throw new TypeError('Search sortOrder must be "asc" or "desc".');
+    }
+    if (!Number.isSafeInteger(page) || page < 1) {
+      throw new TypeError('Search page must be a positive safe integer.');
+    }
+    if (!Number.isSafeInteger(pageSize) || pageSize < 1) {
+      throw new TypeError('Search pageSize must be a positive safe integer.');
+    }
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const matches = [];
+
+    for (const item of this.#items.values()) {
+      if (
+        (type === 'all' || item.type === type) &&
+        item.name.toLowerCase().includes(normalizedQuery)
+      ) {
+        matches.push({ ...item, location: this.#getLocation(item) });
+      }
+    }
+
+    const direction = sortOrder === 'asc' ? 1 : -1;
+    matches.sort((first, second) => {
+      const comparison = first[sortBy].localeCompare(second[sortBy], 'en', {
+        sensitivity: 'base',
+      });
+      return (
+        direction * (comparison || first.id.localeCompare(second.id, 'en'))
+      );
+    });
+
+    const start = (page - 1) * pageSize;
+    return {
+      items: matches.slice(start, start + pageSize),
+      total: matches.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(matches.length / pageSize),
+    };
+  }
+
   createFile(parentId, name) {
     return this.#createItem(parentId, name, 'file');
   }
@@ -115,6 +192,16 @@ export class FileExplorerSDK {
     };
     this.#items.set(item.id, item);
     return { ...item };
+  }
+
+  #getLocation(item) {
+    const names = [];
+    let current = item;
+    while (current) {
+      names.push(current.name);
+      current = this.#items.get(current.parentId);
+    }
+    return names.reverse().join(' / ');
   }
 
   #validateId(id) {
