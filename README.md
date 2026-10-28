@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, and undo/redo. The React application currently displays a heading; UI features will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application currently displays a heading; UI features will follow in later commits.
 
 ## Technology stack
 
@@ -36,6 +36,8 @@ Search tests cover nested matching, filtering, sorting, pagination, invalid
 options, fresh results after mutations, and protection of internal data.
 History tests cover undo/redo for every mutation, nested restoration, branching,
 failed operations, no-ops, ID stability, and independent histories.
+Subscription tests cover notifications, cleanup, duplicate registration, invalid
+listeners, listener errors, and data isolation.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -58,20 +60,21 @@ sdk.deleteItem(projects.id);
 Each instance starts with My Files, Documents (Resume.pdf and Project Plan.docx),
 Images (Photo.png and Logo.svg), and Notes.txt.
 
-| Method                         | Parameters                               | Returns                                                                                                        |
-| ------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `getStructure()`               | None                                     | The complete root folder with nested `children` arrays on folders.                                             |
-| `getItem(id)`                  | A non-empty string ID                    | An item record without descendants, or `null` if no item matches. Invalid IDs throw a descriptive `TypeError`. |
-| `createFile(parentId, name)`   | Parent folder ID and file name           | A detached copy of the created file record.                                                                    |
-| `createFolder(parentId, name)` | Parent folder ID and folder name         | A detached copy of the created folder record.                                                                  |
-| `renameItem(id, name)`         | Item ID and new name                     | A detached copy of the updated item record.                                                                    |
-| `moveItem(id, parentId)`       | Item ID and destination folder ID        | A detached copy of the updated item record.                                                                    |
-| `deleteItem(id)`               | Item ID                                  | A detached copy of the deleted item record, without descendants. All descendants are also deleted.             |
-| `search(query, options)`       | Optional query string and search options | `{ items, total, page, pageSize, totalPages }`. Each item includes its full display `location`.                |
-| `canUndo()`                    | None                                     | Whether an operation is available to undo.                                                                     |
-| `canRedo()`                    | None                                     | Whether an operation is available to redo.                                                                     |
-| `undo()`                       | None                                     | `true` if the previous state was restored, or `false` if undo history is empty.                                |
-| `redo()`                       | None                                     | `true` if an undone state was reapplied, or `false` if redo history is empty.                                  |
+| Method                         | Parameters                                          | Returns                                                                                                        |
+| ------------------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `getStructure()`               | None                                                | The complete root folder with nested `children` arrays on folders.                                             |
+| `getItem(id)`                  | A non-empty string ID                               | An item record without descendants, or `null` if no item matches. Invalid IDs throw a descriptive `TypeError`. |
+| `createFile(parentId, name)`   | Parent folder ID and file name                      | A detached copy of the created file record.                                                                    |
+| `createFolder(parentId, name)` | Parent folder ID and folder name                    | A detached copy of the created folder record.                                                                  |
+| `renameItem(id, name)`         | Item ID and new name                                | A detached copy of the updated item record.                                                                    |
+| `moveItem(id, parentId)`       | Item ID and destination folder ID                   | A detached copy of the updated item record.                                                                    |
+| `deleteItem(id)`               | Item ID                                             | A detached copy of the deleted item record, without descendants. All descendants are also deleted.             |
+| `search(query, options)`       | Optional query string and search options            | `{ items, total, page, pageSize, totalPages }`. Each item includes its full display `location`.                |
+| `canUndo()`                    | None                                                | Whether an operation is available to undo.                                                                     |
+| `canRedo()`                    | None                                                | Whether an operation is available to redo.                                                                     |
+| `undo()`                       | None                                                | `true` if the previous state was restored, or `false` if undo history is empty.                                |
+| `redo()`                       | None                                                | `true` if an undone state was reapplied, or `false` if redo history is empty.                                  |
+| `subscribe(listener)`          | A synchronous callback receiving `{ type, itemId }` | An unsubscribe function. Invalid listeners throw a descriptive `TypeError`.                                    |
 
 The SDK stores item records in a private `Map`, indexed by stable string IDs.
 Each record contains `id`, `name`, `type` (`file` or `folder`), and `parentId`.
@@ -186,7 +189,49 @@ its own history. History is kept in memory without a size limit or persistence;
 each entry copies all map entries, trading memory for a straightforward and
 reliable implementation suited to this assignment.
 
-This phase has no custom initial-data input, subscriptions, or bonus
+## Change subscriptions
+
+```js
+const unsubscribe = sdk.subscribe(({ type, itemId }) => {
+  console.log(type, itemId);
+  const updatedTree = sdk.getStructure();
+  // Use the updated tree to refresh the consuming application.
+});
+
+sdk.renameItem('notes', 'Todo.txt');
+// Notifies with { type: 'renameItem', itemId: 'notes' }.
+
+unsubscribe();
+```
+
+Callbacks run synchronously, in registration order, after the complete change
+and history update. Registration does not immediately invoke the callback;
+consumers read the initial state explicitly. Each state-changing operation emits
+one event, including deleting a folder with descendants. Reads, failed
+operations, no-ops, and empty undo/redo do not notify.
+
+Event `type` is `createFile`, `createFolder`, `renameItem`, `moveItem`,
+`deleteItem`, `undo`, or `redo`. `itemId` identifies the directly affected item
+for mutations, including a deleted item. Undo and redo use `itemId: null`, since
+restoring history can affect an entire subtree. Callbacks can read the SDK to
+retrieve the current hierarchy and history availability. Each listener receives
+its own event object, containing no references to SDK state.
+
+Listeners are deduplicated by function identity. Registering the same callback
+twice still notifies it once; either returned cleanup function removes that
+callback. Cleanup can be called repeatedly. A notification uses a snapshot of
+the registered callbacks, so subscribing or unsubscribing during delivery takes
+effect on subsequent notifications. Subscriptions belong to the SDK instance
+and remain registered across undo and redo.
+
+Synchronous callback exceptions are logged with `console.error`; they do not
+change the completed operation's result, corrupt history, or prevent later
+callbacks from running. Listeners should be synchronous observers that read
+state rather than mutate the SDK during delivery. Listener return values are
+ignored; asynchronous callbacks and rejected promises are not managed by the
+SDK. Consumers must unsubscribe when they no longer need updates.
+
+This phase has no custom initial-data input or bonus
 features. The React app is not connected to the SDK yet.
 
 ## Formatting and Git hooks

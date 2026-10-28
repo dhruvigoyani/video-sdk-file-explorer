@@ -24,6 +24,7 @@ export class FileExplorerSDK {
   #nextId = 1;
   #undoStack = [];
   #redoStack = [];
+  #listeners = new Set();
 
   getStructure() {
     const nodes = new Map();
@@ -136,6 +137,17 @@ export class FileExplorerSDK {
     return this.#createItem(parentId, name, 'folder');
   }
 
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('Change listener must be a function.');
+    }
+
+    this.#listeners.add(listener);
+    return () => {
+      this.#listeners.delete(listener);
+    };
+  }
+
   canUndo() {
     return this.#undoStack.length > 0;
   }
@@ -151,6 +163,7 @@ export class FileExplorerSDK {
 
     this.#redoStack.push(new Map(this.#items));
     this.#items = this.#undoStack.pop();
+    this.#notifyChange('undo');
     return true;
   }
 
@@ -161,6 +174,7 @@ export class FileExplorerSDK {
 
     this.#undoStack.push(new Map(this.#items));
     this.#items = this.#redoStack.pop();
+    this.#notifyChange('redo');
     return true;
   }
 
@@ -174,6 +188,7 @@ export class FileExplorerSDK {
     const updated = { ...item, name: normalizedName };
     this.#recordHistory();
     this.#items.set(id, updated);
+    this.#notifyChange('renameItem', id);
     return { ...updated };
   }
 
@@ -200,6 +215,7 @@ export class FileExplorerSDK {
     const updated = { ...item, parentId };
     this.#recordHistory();
     this.#items.set(id, updated);
+    this.#notifyChange('moveItem', id);
     return { ...updated };
   }
 
@@ -219,6 +235,7 @@ export class FileExplorerSDK {
       this.#items.delete(currentId);
     }
 
+    this.#notifyChange('deleteItem', id);
     return { ...item };
   }
 
@@ -233,7 +250,21 @@ export class FileExplorerSDK {
     };
     this.#recordHistory();
     this.#items.set(item.id, item);
+    this.#notifyChange(
+      type === 'file' ? 'createFile' : 'createFolder',
+      item.id,
+    );
     return { ...item };
+  }
+
+  #notifyChange(type, itemId = null) {
+    for (const listener of [...this.#listeners]) {
+      try {
+        listener({ type, itemId });
+      } catch (error) {
+        console.error('FileExplorerSDK change listener failed:', error);
+      }
+    }
   }
 
   #getLocation(item) {
