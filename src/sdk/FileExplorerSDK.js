@@ -22,6 +22,8 @@ const initialItems = [
 export class FileExplorerSDK {
   #items = new Map(initialItems.map((item) => [item.id, { ...item }]));
   #nextId = 1;
+  #undoStack = [];
+  #redoStack = [];
 
   getStructure() {
     const nodes = new Map();
@@ -134,10 +136,43 @@ export class FileExplorerSDK {
     return this.#createItem(parentId, name, 'folder');
   }
 
+  canUndo() {
+    return this.#undoStack.length > 0;
+  }
+
+  canRedo() {
+    return this.#redoStack.length > 0;
+  }
+
+  undo() {
+    if (!this.canUndo()) {
+      return false;
+    }
+
+    this.#redoStack.push(new Map(this.#items));
+    this.#items = this.#undoStack.pop();
+    return true;
+  }
+
+  redo() {
+    if (!this.canRedo()) {
+      return false;
+    }
+
+    this.#undoStack.push(new Map(this.#items));
+    this.#items = this.#redoStack.pop();
+    return true;
+  }
+
   renameItem(id, name) {
     const item = this.#requireItem(id);
     const normalizedName = this.#validateName(name, item.parentId, id);
+    if (normalizedName === item.name) {
+      return { ...item };
+    }
+
     const updated = { ...item, name: normalizedName };
+    this.#recordHistory();
     this.#items.set(id, updated);
     return { ...updated };
   }
@@ -158,7 +193,12 @@ export class FileExplorerSDK {
     }
 
     this.#validateName(item.name, parentId, id);
+    if (item.parentId === parentId) {
+      return { ...item };
+    }
+
     const updated = { ...item, parentId };
+    this.#recordHistory();
     this.#items.set(id, updated);
     return { ...updated };
   }
@@ -167,6 +207,7 @@ export class FileExplorerSDK {
     const item = this.#requireItem(id);
     this.#protectRoot(item, 'deleted');
     const pending = [id];
+    this.#recordHistory();
 
     while (pending.length > 0) {
       const currentId = pending.pop();
@@ -190,6 +231,7 @@ export class FileExplorerSDK {
       type,
       parentId,
     };
+    this.#recordHistory();
     this.#items.set(item.id, item);
     return { ...item };
   }
@@ -202,6 +244,12 @@ export class FileExplorerSDK {
       current = this.#items.get(current.parentId);
     }
     return names.reverse().join(' / ');
+  }
+
+  #recordHistory() {
+    // Records are replaced on mutation, so snapshots can safely share them.
+    this.#undoStack.push(new Map(this.#items));
+    this.#redoStack.length = 0;
   }
 
   #validateId(id) {

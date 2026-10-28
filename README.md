@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, and search with filtering, sorting, and pagination. The React application currently displays a heading; UI features will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, and undo/redo. The React application currently displays a heading; UI features will follow in later commits.
 
 ## Technology stack
 
@@ -34,6 +34,8 @@ IDs, defensive copies, and independent instances. Mutation tests cover file and
 folder operations, validation failures, circular moves, and nested deletion.
 Search tests cover nested matching, filtering, sorting, pagination, invalid
 options, fresh results after mutations, and protection of internal data.
+History tests cover undo/redo for every mutation, nested restoration, branching,
+failed operations, no-ops, ID stability, and independent histories.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -66,6 +68,10 @@ Images (Photo.png and Logo.svg), and Notes.txt.
 | `moveItem(id, parentId)`       | Item ID and destination folder ID        | A detached copy of the updated item record.                                                                    |
 | `deleteItem(id)`               | Item ID                                  | A detached copy of the deleted item record, without descendants. All descendants are also deleted.             |
 | `search(query, options)`       | Optional query string and search options | `{ items, total, page, pageSize, totalPages }`. Each item includes its full display `location`.                |
+| `canUndo()`                    | None                                     | Whether an operation is available to undo.                                                                     |
+| `canRedo()`                    | None                                     | Whether an operation is available to redo.                                                                     |
+| `undo()`                       | None                                     | `true` if the previous state was restored, or `false` if undo history is empty.                                |
+| `redo()`                       | None                                     | `true` if an undone state was reapplied, or `false` if redo history is empty.                                  |
 
 The SDK stores item records in a private `Map`, indexed by stable string IDs.
 Each record contains `id`, `name`, `type` (`file` or `folder`), and `parentId`.
@@ -146,7 +152,41 @@ Invalid queries, non-object options, unsupported option names or values, and
 invalid pagination values throw descriptive `TypeError`s. Options set to
 `undefined` use their defaults.
 
-This phase has no custom initial-data input, history, subscriptions, or bonus
+## Undo and redo
+
+```js
+const created = sdk.createFolder('root', 'Archive');
+sdk.canUndo(); // true
+sdk.undo(); // true; Archive is removed
+sdk.getItem(created.id); // null
+sdk.canRedo(); // true
+sdk.redo(); // true; Archive is restored with its original ID
+```
+
+Each successful state-changing creation, rename, move, or deletion records one
+snapshot on a private undo stack. A snapshot copies the item `Map`, preserving
+records and insertion order. Records are never edited in place and are never
+exposed directly, so snapshots can safely share unchanged records. Undo moves
+the current state to the redo stack and restores the last undo snapshot; redo
+does the reverse. Neither calls mutation methods or creates extra history entries.
+
+Deleting a folder records one history entry regardless of the number of
+descendants. Undo restores the complete nested structure, original IDs, and
+sibling order. Search uses the restored state immediately, including updated
+locations. Root renaming and case-only renaming are also undoable.
+
+A new state-changing mutation after undo clears the entire redo stack. Failed
+operations, reads, same-name renames (after trimming), and moves to the current
+parent neither add history entries nor clear redo. Empty undo or redo returns
+`false` and leaves both stacks unchanged.
+
+The ID counter is not part of snapshots. Redo restores the original IDs, while
+new creations never reuse IDs allocated before an undo. Each SDK instance has
+its own history. History is kept in memory without a size limit or persistence;
+each entry copies all map entries, trading memory for a straightforward and
+reliable implementation suited to this assignment.
+
+This phase has no custom initial-data input, subscriptions, or bonus
 features. The React app is not connected to the SDK yet.
 
 ## Formatting and Git hooks
