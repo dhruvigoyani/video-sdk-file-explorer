@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../App.jsx';
@@ -206,5 +206,96 @@ describe('File explorer tree', () => {
     expect(
       screen.getByRole('button', { name: 'Collapse Empty' }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('Drag and drop moves', () => {
+  const row = (name) => screen.getByRole('button', { name }).parentElement;
+  const drag = (source, destination) => {
+    const dataTransfer = {
+      setData: vi.fn(),
+      setDragImage: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+    };
+    fireEvent.dragStart(row(source), { dataTransfer });
+    expect(dataTransfer.setDragImage).toHaveBeenCalledOnce();
+    const preview = dataTransfer.setDragImage.mock.calls[0][0];
+    expect(preview).toHaveAttribute('aria-hidden', 'true');
+    expect(preview.children).toHaveLength(0);
+    expect(preview.textContent).toContain(
+      source.replace(/ (file|folder)$/, ''),
+    );
+    fireEvent.dragOver(row(destination), { dataTransfer });
+    fireEvent.drop(row(destination), { dataTransfer });
+    fireEvent.dragEnd(row(destination), { dataTransfer });
+  };
+
+  it('moves a single file into a collapsed folder and supports undo', () => {
+    const sdk = renderExplorer();
+    drag('Notes.txt file', 'Images folder');
+    expect(sdk.getItem('notes').parentId).toBe('images');
+    expect(
+      screen.getByRole('button', { name: 'Collapse Images' }),
+    ).toBeInTheDocument();
+    act(() => sdk.undo());
+    expect(sdk.getItem('notes').parentId).toBe('root');
+  });
+
+  it('moves checked branches together while preserving nested contents', async () => {
+    const user = userEvent.setup();
+    const sdk = renderExplorer();
+    const transaction = vi.spyOn(sdk, 'transaction');
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: 'Include Documents in bulk selection',
+      }),
+    );
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: 'Include Notes.txt in bulk selection',
+      }),
+    );
+    drag('Documents folder', 'Images folder');
+    expect(transaction).toHaveBeenCalledWith([
+      { method: 'moveItem', args: ['documents', 'images'] },
+      { method: 'moveItem', args: ['notes', 'images'] },
+    ]);
+    expect(sdk.getItem('resume').parentId).toBe('documents');
+    expect(screen.getByText('0 selected for bulk actions')).toBeInTheDocument();
+  });
+
+  it('rejects drops on files, itself, and descendants', async () => {
+    const user = userEvent.setup();
+    const sdk = renderExplorer();
+    act(() => sdk.createFolder('documents', 'Nested'));
+    await user.click(screen.getByRole('button', { name: 'Documents folder' }));
+    const before = sdk.getStructure();
+    drag('Documents folder', 'Nested folder');
+    drag('Documents folder', 'Documents folder');
+    drag('Documents folder', 'Notes.txt file');
+    expect(sdk.getStructure()).toEqual(before);
+    expect(row('My Files folder')).toHaveAttribute('draggable', 'false');
+  });
+
+  it('rolls back the whole selection on conflicts and displays the error', async () => {
+    const user = userEvent.setup();
+    const sdk = renderExplorer();
+    act(() => sdk.createFile('images', 'Notes.txt'));
+    const before = sdk.getStructure();
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: 'Include Documents in bulk selection',
+      }),
+    );
+    await user.click(
+      screen.getByRole('checkbox', {
+        name: 'Include Notes.txt in bulk selection',
+      }),
+    );
+    drag('Documents folder', 'Images folder');
+    expect(sdk.getStructure()).toEqual(before);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText('4 selected for bulk actions')).toBeInTheDocument();
   });
 });

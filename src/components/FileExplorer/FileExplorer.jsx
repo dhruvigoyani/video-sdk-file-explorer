@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFileExplorer } from '../../hooks/useFileExplorer.js';
 import { FileTree } from './FileTree.jsx';
 import { FileActions } from './FileActions.jsx';
@@ -7,11 +7,22 @@ import { DetailsPanel } from '../DetailsPanel/DetailsPanel.jsx';
 import { ActivityPanel } from '../ActivityPanel/ActivityPanel.jsx';
 import { HistoryControls } from '../common/HistoryControls.jsx';
 import { BulkActions } from './BulkActions.jsx';
-import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Chip,
+  Divider,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 
 export const FileExplorer = () => {
-  const { structure } = useFileExplorer();
+  const { sdk, structure } = useFileExplorer();
+  const draggedIds = useRef([]);
+  const dragPreview = useRef(null);
+  const [dragError, setDragError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [bulkIds, setBulkIds] = useState(() => new Set());
   const [expandedIds, setExpandedIds] = useState(() => new Set([structure.id]));
@@ -83,6 +94,64 @@ export const FileExplorer = () => {
   );
 
   const selected = items.get(selectedId);
+  const startDrag = (event, id) => {
+    if (items.get(id)?.parentId == null) {
+      event.preventDefault();
+      return;
+    }
+    const selection = bulkIds.has(id) ? bulkIds : new Set([id]);
+    draggedIds.current = [...selection].filter((itemId) => {
+      let parent = items.get(items.get(itemId)?.parentId);
+      while (parent) {
+        if (selection.has(parent.id)) return false;
+        parent = items.get(parent.parentId);
+      }
+      return true;
+    });
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', items.get(id).name);
+    // Give the browser a single compact preview instead of capturing the row
+    // and any overflowing tree content in its default drag image.
+    if (dragPreview.current) {
+      dragPreview.current.textContent =
+        selection.size > 1
+          ? `${items.get(id).name} (${selection.size} items)`
+          : items.get(id).name;
+      event.dataTransfer.setDragImage(dragPreview.current, 16, 16);
+    }
+    setDragError('');
+  };
+  const canDrop = (id) => {
+    if (items.get(id)?.type !== 'folder' || !draggedIds.current.length)
+      return false;
+    let ancestor = items.get(id);
+    while (ancestor) {
+      if (draggedIds.current.includes(ancestor.id)) return false;
+      ancestor = items.get(ancestor.parentId);
+    }
+    return true;
+  };
+  const dropItems = (event, id) => {
+    event.preventDefault();
+    if (!canDrop(id)) return;
+    try {
+      const operations = draggedIds.current
+        .filter((itemId) => items.get(itemId)?.parentId !== id)
+        .map((itemId) => ({ method: 'moveItem', args: [itemId, id] }));
+      if (operations.length) {
+        sdk.transaction(operations);
+        setBulkIds(new Set());
+        setExpandedIds((previous) => new Set([...previous, id]));
+      }
+      setDragError('');
+    } catch (failure) {
+      setDragError(
+        failure instanceof Error ? failure.message : 'Could not move items.',
+      );
+    } finally {
+      draggedIds.current = [];
+    }
+  };
   const selectedLocation = useMemo(() => {
     const names = [];
     let item = selected;
@@ -118,6 +187,31 @@ export const FileExplorer = () => {
         boxShadow: '0 8px 36px #25283d05',
       }}
     >
+      <Box
+        ref={dragPreview}
+        aria-hidden="true"
+        sx={{
+          position: 'fixed',
+          left: -10000,
+          top: 0,
+          pointerEvents: 'none',
+          width: 'max-content',
+          maxWidth: 280,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          px: 2,
+          py: 1,
+          bgcolor: '#eeebfc',
+          color: 'primary.main',
+          border: '1px solid',
+          borderColor: 'primary.main',
+          borderRadius: 1.5,
+          boxShadow: 3,
+          fontSize: 14,
+          fontWeight: 600,
+        }}
+      />
       <Stack
         direction="row"
         spacing={1.5}
@@ -138,6 +232,25 @@ export const FileExplorer = () => {
           sx={{ bgcolor: '#f1effa', color: 'primary.main', fontWeight: 600 }}
         />
       </Stack>
+      <Divider />
+      <Typography
+        role="status"
+        variant="body2"
+        sx={{
+          bgcolor: '#fafafe',
+          px: 3,
+          py: 1.5,
+          color: selected ? 'primary.main' : 'text.secondary',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {selected ? `Selected: ${selected.name}` : 'No item selected'}
+      </Typography>
+      {dragError && (
+        <Alert severity="error" onClose={() => setDragError('')}>
+          {dragError}
+        </Alert>
+      )}
       <Divider />
       <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
         <Stack
@@ -216,6 +329,12 @@ export const FileExplorer = () => {
                         onBulkToggle={toggleBulkItem}
                         onToggle={toggleFolder}
                         onSelect={setSelectedId}
+                        onDragStart={startDrag}
+                        onDragEnd={() => {
+                          draggedIds.current = [];
+                        }}
+                        canDrop={canDrop}
+                        onDrop={dropItems}
                       />
                     </ul>
                   </>
@@ -233,19 +352,6 @@ export const FileExplorer = () => {
       </SearchPanel>
       <ActivityPanel />
       <Divider />
-      <Typography
-        role="status"
-        variant="body2"
-        sx={{
-          bgcolor: '#fafafe',
-          px: 3,
-          py: 1.5,
-          color: selected ? 'primary.main' : 'text.secondary',
-          overflowWrap: 'anywhere',
-        }}
-      >
-        {selected ? `Selected: ${selected.name}` : 'No item selected'}
-      </Typography>
     </Paper>
   );
 };

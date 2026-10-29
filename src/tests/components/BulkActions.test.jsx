@@ -209,3 +209,74 @@ describe('Multi-selection and atomic bulk deletion', () => {
     expect(checkbox('Documents')).not.toBeChecked();
   });
 });
+
+describe('Bulk move', () => {
+  it('moves selected branches together and restores them with one undo', async () => {
+    const { sdk, user } = setup();
+    const before = sdk.getStructure();
+    const transaction = vi.spyOn(sdk, 'transaction');
+    await user.click(checkbox('Documents'));
+    await user.click(checkbox('Notes.txt'));
+    await user.click(screen.getByRole('button', { name: 'Move selected' }));
+    const destination = screen.getByRole('combobox', {
+      name: 'Bulk destination folder',
+    });
+    expect(
+      within(destination).queryByRole('option', {
+        name: 'My Files / Documents',
+      }),
+    ).not.toBeInTheDocument();
+    await user.selectOptions(destination, 'images');
+    await user.click(screen.getByRole('button', { name: 'Confirm bulk move' }));
+    expect(transaction).toHaveBeenCalledWith([
+      { method: 'moveItem', args: ['documents', 'images'] },
+      { method: 'moveItem', args: ['notes', 'images'] },
+    ]);
+    expect(sdk.getItem('documents').parentId).toBe('images');
+    expect(sdk.getItem('notes').parentId).toBe('images');
+    expect(sdk.getItem('resume').parentId).toBe('documents');
+    expect(screen.getByText('0 selected for bulk actions')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo', exact: true }));
+    expect(sdk.getStructure()).toEqual(before);
+    await user.click(screen.getByRole('button', { name: 'Redo', exact: true }));
+    expect(sdk.getItem('documents').parentId).toBe('images');
+  });
+
+  it('rolls back all moves after a name conflict and retains selection for retry', async () => {
+    const { sdk, user } = setup();
+    act(() => sdk.createFile('images', 'Notes.txt'));
+    const before = sdk.getStructure();
+    await user.click(checkbox('Documents'));
+    await user.click(checkbox('Notes.txt'));
+    await user.click(screen.getByRole('button', { name: 'Move selected' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Bulk destination folder' }),
+      'images',
+    );
+    await user.click(screen.getByRole('button', { name: 'Confirm bulk move' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(sdk.getStructure()).toEqual(before);
+    expect(checkbox('Documents')).toBeChecked();
+    expect(checkbox('Notes.txt')).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Cancel bulk move' }));
+    expect(
+      screen.queryByRole('combobox', { name: 'Bulk destination folder' }),
+    ).not.toBeInTheDocument();
+    expect(sdk.getStructure()).toEqual(before);
+  });
+
+  it('excludes selected folders and nested folders from move destinations', async () => {
+    const { sdk, user } = setup();
+    act(() => sdk.createFolder('documents', 'Nested'));
+    await user.click(checkbox('Documents'));
+    await user.click(screen.getByRole('button', { name: 'Move selected' }));
+    const destination = screen.getByRole('combobox', {
+      name: 'Bulk destination folder',
+    });
+    expect(
+      within(destination)
+        .getAllByRole('option')
+        .map((option) => option.value),
+    ).toEqual(['', 'root', 'images']);
+  });
+});

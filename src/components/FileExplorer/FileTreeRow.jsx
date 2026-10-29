@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import {
   Box,
   ButtonBase,
@@ -25,7 +25,12 @@ export const FileTreeRow = memo(
     onBulkToggle,
     onToggle,
     onSelect,
+    onDragStart,
+    onDragEnd,
+    canDrop,
+    onDrop,
   }) => {
+    const [dropTarget, setDropTarget] = useState(false);
     const ItemIcon =
       type === 'folder'
         ? expanded
@@ -35,8 +40,39 @@ export const FileTreeRow = memo(
 
     return (
       <Box
+        draggable={!bulkDisabled}
+        onDragStart={(event) => onDragStart(event, id)}
+        onDragEnd={() => {
+          setDropTarget(false);
+          onDragEnd();
+        }}
+        onDragOver={(event) => {
+          event.stopPropagation();
+          const allowed = canDrop(id);
+          event.dataTransfer.dropEffect = allowed ? 'move' : 'none';
+          setDropTarget(allowed);
+          if (allowed) event.preventDefault();
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setDropTarget(false);
+        }}
+        onDrop={(event) => {
+          event.stopPropagation();
+          setDropTarget(false);
+          onDrop(event, id);
+        }}
         onClick={() => type === 'folder' && onToggle(id)}
-        sx={{ display: 'flex', alignItems: 'center', gap: 0.5, my: 0.25 }}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          my: 0.25,
+          borderRadius: 1.5,
+          outline: dropTarget ? '2px solid' : 'none',
+          outlineColor: 'primary.main',
+          bgcolor: dropTarget ? '#eeebfc' : 'transparent',
+        }}
       >
         <Checkbox
           size="small"

@@ -4,9 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  FormControl,
-  InputLabel,
-  NativeSelect,
   Paper,
   Stack,
   TextField,
@@ -15,14 +12,11 @@ import {
 import NoteAddOutlined from '@mui/icons-material/NoteAddOutlined';
 import CreateNewFolderOutlined from '@mui/icons-material/CreateNewFolderOutlined';
 import DriveFileRenameOutlineRounded from '@mui/icons-material/DriveFileRenameOutlineRounded';
-import DriveFileMoveOutlined from '@mui/icons-material/DriveFileMoveOutlined';
-import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 
 export const FileActions = ({ selected, onReveal }) => {
   const { sdk, structure } = useFileExplorer();
   const [action, setAction] = useState(null);
   const [name, setName] = useState('');
-  const [destinationId, setDestinationId] = useState('');
   const [error, setError] = useState('');
   const fieldId = useId();
   const folders = useMemo(
@@ -36,12 +30,10 @@ export const FileActions = ({ selected, onReveal }) => {
       ? selected.id
       : (selected?.parentId ?? structure.id);
   const parent = folders.find((folder) => folder.id === parentId);
-  const isRoot = selected?.parentId === null;
 
   const startAction = (nextAction) => {
     setAction(nextAction);
     setName(nextAction === 'rename' ? selected.name : '');
-    setDestinationId(selected?.parentId ?? structure.id);
     setError('');
   };
 
@@ -54,10 +46,6 @@ export const FileActions = ({ selected, onReveal }) => {
         onReveal(sdk[action](parentId, name));
       } else if (action === 'rename') {
         sdk.renameItem(selected.id, name);
-      } else if (action === 'move') {
-        onReveal(sdk.moveItem(selected.id, destinationId));
-      } else if (action === 'delete') {
-        sdk.deleteItem(selected.id);
       }
       setAction(null);
     } catch (failure) {
@@ -98,23 +86,6 @@ export const FileActions = ({ selected, onReveal }) => {
         >
           Rename
         </Button>
-        <Button
-          startIcon={<DriveFileMoveOutlined />}
-          type="button"
-          disabled={!selected || isRoot}
-          onClick={() => startAction('move')}
-        >
-          Move
-        </Button>
-        <Button
-          color="error"
-          startIcon={<DeleteOutlineRounded />}
-          type="button"
-          disabled={!selected || isRoot}
-          onClick={() => startAction('delete')}
-        >
-          Delete
-        </Button>
       </Stack>
       {action && (
         <Paper
@@ -153,42 +124,10 @@ export const FileActions = ({ selected, onReveal }) => {
               />
             </>
           )}
-          {action === 'move' && (
-            <>
-              <Typography variant="subtitle2">Move {selected.name}</Typography>
-              <FormControl fullWidth>
-                <InputLabel htmlFor={fieldId}>Destination folder</InputLabel>
-                <NativeSelect
-                  inputProps={{ id: fieldId }}
-                  value={destinationId}
-                  onChange={(event) => setDestinationId(event.target.value)}
-                  autoFocus
-                >
-                  {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.location}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </FormControl>
-            </>
-          )}
-          {action === 'delete' && (
-            <Typography variant="body2">
-              Delete {selected.name}?{' '}
-              {selected.type === 'folder'
-                ? 'All descendants will also be deleted.'
-                : ''}
-            </Typography>
-          )}
           {error && <Alert severity="error">{error}</Alert>}
           <Stack direction="row" spacing={1}>
-            <Button
-              type="submit"
-              variant="contained"
-              color={action === 'delete' ? 'error' : 'primary'}
-            >
-              {action === 'delete' ? 'Confirm delete' : 'Save'}
+            <Button type="submit" variant="contained">
+              Save
             </Button>
             <Button
               type="button"

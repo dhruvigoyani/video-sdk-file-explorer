@@ -18,21 +18,20 @@ beforeEach(() => vi.spyOn(console, 'log').mockImplementation(() => {}));
 afterEach(() => vi.restoreAllMocks());
 
 describe('File action controls', () => {
-  it('disables selection-only controls and protects the root', async () => {
+  it('offers create and rename actions without duplicate move or delete controls', async () => {
     const { user } = setup();
-    for (const name of ['Rename', 'Move', 'Delete']) {
-      expect(screen.getByRole('button', { name, exact: true })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Rename', exact: true }),
+    ).toBeDisabled();
+    for (const name of ['Move', 'Delete']) {
+      expect(
+        screen.queryByRole('button', { name, exact: true }),
+      ).not.toBeInTheDocument();
     }
     await user.click(screen.getByRole('button', { name: 'My Files folder' }));
     expect(
       screen.getByRole('button', { name: 'Rename', exact: true }),
     ).toBeEnabled();
-    expect(
-      screen.getByRole('button', { name: 'Move', exact: true }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Delete', exact: true }),
-    ).toBeDisabled();
   });
 
   it('creates a file in the root without a selection and selects the result', async () => {
@@ -93,43 +92,7 @@ describe('File action controls', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('moves a selected item and opens the destination ancestors', async () => {
-    const { sdk, user } = setup();
-    await user.click(screen.getByRole('button', { name: 'Notes.txt file' }));
-    await user.click(screen.getByRole('button', { name: 'Move', exact: true }));
-    await user.selectOptions(
-      screen.getByLabelText('Destination folder'),
-      'documents',
-    );
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(sdk.getItem('notes').parentId).toBe('documents');
-    expect(
-      screen.getByRole('button', { name: 'Collapse Documents' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Notes.txt file' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  it('confirms subtree deletion and clears selection', async () => {
-    const { sdk, user } = setup();
-    await user.click(screen.getByRole('button', { name: 'Documents folder' }));
-    await user.click(
-      screen.getByRole('button', { name: 'Delete', exact: true }),
-    );
-    expect(
-      screen.getByText(/All descendants will also be deleted/),
-    ).toBeInTheDocument();
-    expect(sdk.getItem('documents')).not.toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Confirm delete' }));
-
-    expect(sdk.getItem('documents')).toBeNull();
-    expect(sdk.getItem('resume')).toBeNull();
-    expect(screen.getByRole('status')).toHaveTextContent('No item selected');
-  });
-
-  it.each(['New file', 'New folder', 'Rename', 'Delete'])(
+  it.each(['New file', 'New folder', 'Rename'])(
     'cancels %s without changing SDK state',
     async (action) => {
       const { sdk, user } = setup();
@@ -171,23 +134,13 @@ describe('File action controls', () => {
     expect(sdk.getItem('notes').name).toBe('Todo.txt');
   });
 
-  it('shows SDK errors for blank names and circular moves without changing data', async () => {
+  it('shows SDK errors for blank names without changing data', async () => {
     const { sdk, user } = setup();
     const before = sdk.getStructure();
     await user.click(screen.getByRole('button', { name: 'New file' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(screen.getByRole('alert')).toHaveTextContent('non-empty string');
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    await user.click(screen.getByRole('button', { name: 'Documents folder' }));
-    await user.click(screen.getByRole('button', { name: 'Move', exact: true }));
-    await user.selectOptions(
-      screen.getByLabelText('Destination folder'),
-      'documents',
-    );
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'itself or a descendant',
-    );
     expect(sdk.getStructure()).toEqual(before);
     expect(sdk.canUndo()).toBe(false);
   });

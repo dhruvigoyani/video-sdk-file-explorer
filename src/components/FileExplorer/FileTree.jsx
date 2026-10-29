@@ -8,6 +8,10 @@ export const FileTree = ({
   onBulkToggle,
   onToggle,
   onSelect,
+  onDragStart,
+  onDragEnd,
+  canDrop,
+  onDrop,
   filterType = 'all',
   sortBy = 'name',
   sortOrder = 'asc',
@@ -48,6 +52,10 @@ export const FileTree = ({
         onBulkToggle={onBulkToggle}
         onToggle={onToggle}
         onSelect={onSelect}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        canDrop={canDrop}
+        onDrop={onDrop}
       />
       {expanded && (
         <ul>
@@ -61,6 +69,10 @@ export const FileTree = ({
               onBulkToggle={onBulkToggle}
               onToggle={onToggle}
               onSelect={onSelect}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              canDrop={canDrop}
+              onDrop={onDrop}
               filterType={filterType}
               sortBy={sortBy}
               sortOrder={sortOrder}
