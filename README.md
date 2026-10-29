@@ -444,8 +444,37 @@ temporary snapshots add memory cost; they are discarded after execution. Tests
 cover successful commits, rollback, staged validation, history isolation,
 notifications, defensive results, no-ops, and React activity integration.
 
-Completed bonus: SDK atomic transactions. Multi-selection and bulk-deletion UI
-remain unimplemented. Custom initial-data input is not supported. The SDK remains
+## Multi-selection and bulk deletion (completed bonus)
+
+Tree rows include checkboxes for bulk selection, independently of the active item
+used by details and single-item actions. Checking a folder does not automatically
+check its descendants. The root checkbox is disabled because the root cannot be
+deleted. The bulk toolbar displays the selected count, Clear selection, and
+Delete selected controls; deletion requires an inline confirmation.
+
+Checked IDs stay selected across collapse, renaming, moving, and search changes.
+Hidden selections still count. Externally deleted IDs are pruned, and undo does
+not automatically restore their checkbox state. Changing the checked set closes
+any prior confirmation and clears its errors. Clearing bulk selection does not
+change the active item shown in Details.
+
+`BulkActions` converts checked IDs into `deleteItem` descriptors and calls
+`sdk.transaction()` once. If both an ancestor and descendant are checked, it
+submits only the ancestor; SDK deletion already removes the whole subtree.
+This prevents redundant operations from failing on an already-deleted descendant.
+One undo restores the complete batch, and one activity entry records its commit.
+Successful deletion clears all checked IDs. Transaction failure keeps the checked
+set and confirmation intact and displays the SDK error for correction or retry.
+Bulk selection itself never changes file data or SDK history. It is managed in
+React, and row checkboxes receive primitive checked values and a stable callback.
+
+Bulk UI tests cover independent checkboxes, counts, hidden selection, ancestor
+normalization, atomic deletion, undo/redo, failure and retry, cancellation, and
+cleanup after external deletions. Search results retain their active-item button;
+bulk checkboxes are available in the tree.
+
+Completed bonuses: SDK atomic transactions and React multi-selection with atomic
+bulk deletion. Custom initial-data input is not supported. The SDK remains
 independent of React.
 
 ## Styling

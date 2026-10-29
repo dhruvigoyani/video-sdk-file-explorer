@@ -4,6 +4,8 @@ export const FileTree = ({
   node,
   expandedIds,
   selectedId,
+  bulkIds,
+  onBulkToggle,
   onToggle,
   onSelect,
 }) => {
@@ -19,6 +21,9 @@ export const FileTree = ({
         type={node.type}
         expanded={expanded}
         selected={selectedId === node.id}
+        checked={bulkIds.has(node.id)}
+        bulkDisabled={node.parentId === null}
+        onBulkToggle={onBulkToggle}
         onToggle={onToggle}
         onSelect={onSelect}
       />
@@ -30,6 +35,8 @@ export const FileTree = ({
               node={child}
               expandedIds={expandedIds}
               selectedId={selectedId}
+              bulkIds={bulkIds}
+              onBulkToggle={onBulkToggle}
               onToggle={onToggle}
               onSelect={onSelect}
             />

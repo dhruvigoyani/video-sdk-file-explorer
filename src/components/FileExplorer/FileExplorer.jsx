@@ -6,12 +6,14 @@ import { SearchPanel } from '../Search/SearchPanel.jsx';
 import { DetailsPanel } from '../DetailsPanel/DetailsPanel.jsx';
 import { ActivityPanel } from '../ActivityPanel/ActivityPanel.jsx';
 import { HistoryControls } from '../common/HistoryControls.jsx';
+import { BulkActions } from './BulkActions.jsx';
 import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 
 export const FileExplorer = () => {
   const { structure } = useFileExplorer();
   const [selectedId, setSelectedId] = useState(null);
+  const [bulkIds, setBulkIds] = useState(() => new Set());
   const [expandedIds, setExpandedIds] = useState(() => new Set([structure.id]));
 
   const items = useMemo(() => {
@@ -29,6 +31,10 @@ export const FileExplorer = () => {
 
   useEffect(() => {
     setSelectedId((previous) => (items.has(previous) ? previous : null));
+    setBulkIds((previous) => {
+      const remaining = new Set([...previous].filter((id) => items.has(id)));
+      return remaining.size === previous.size ? previous : remaining;
+    });
     setExpandedIds((previous) => {
       const remaining = new Set(
         [...previous].filter((id) => items.get(id)?.type === 'folder'),
@@ -45,6 +51,15 @@ export const FileExplorer = () => {
       } else {
         next.add(id);
       }
+      return next;
+    });
+  }, []);
+
+  const toggleBulkItem = useCallback((id) => {
+    setBulkIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -122,6 +137,12 @@ export const FileExplorer = () => {
           />
           <HistoryControls />
         </Stack>
+        <BulkActions
+          key={[...bulkIds].sort().join('|')}
+          selectedIds={bulkIds}
+          items={items}
+          onClear={() => setBulkIds(new Set())}
+        />
       </Box>
       <Divider />
       <Box
@@ -160,6 +181,8 @@ export const FileExplorer = () => {
               node={structure}
               expandedIds={expandedIds}
               selectedId={selected?.id ?? null}
+              bulkIds={bulkIds}
+              onBulkToggle={toggleBulkItem}
               onToggle={toggleFolder}
               onSelect={setSelectedId}
             />

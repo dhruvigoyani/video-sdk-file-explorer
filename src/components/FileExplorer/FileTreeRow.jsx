@@ -1,5 +1,12 @@
 import { memo } from 'react';
-import { Box, ButtonBase, Chip, IconButton, Typography } from '@mui/material';
+import {
+  Box,
+  ButtonBase,
+  Checkbox,
+  Chip,
+  IconButton,
+  Typography,
+} from '@mui/material';
 import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
@@ -7,7 +14,18 @@ import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 
 export const FileTreeRow = memo(
-  ({ id, name, type, expanded, selected, onToggle, onSelect }) => {
+  ({
+    id,
+    name,
+    type,
+    expanded,
+    selected,
+    checked,
+    bulkDisabled,
+    onBulkToggle,
+    onToggle,
+    onSelect,
+  }) => {
     const ItemIcon =
       type === 'folder'
         ? expanded
@@ -17,6 +35,16 @@ export const FileTreeRow = memo(
 
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, my: 0.25 }}>
+        <Checkbox
+          size="small"
+          checked={checked}
+          disabled={bulkDisabled}
+          onChange={() => onBulkToggle(id)}
+          slotProps={{
+            input: { 'aria-label': `Include ${name} in bulk selection` },
+          }}
+          sx={{ p: 0.5 }}
+        />
         {type === 'folder' ? (
           <IconButton
             size="small"
