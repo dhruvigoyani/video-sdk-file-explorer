@@ -34,11 +34,15 @@ export const FileTreeRow = memo(
         : InsertDriveFileOutlined;
 
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, my: 0.25 }}>
+      <Box
+        onClick={() => type === 'folder' && onToggle(id)}
+        sx={{ display: 'flex', alignItems: 'center', gap: 0.5, my: 0.25 }}
+      >
         <Checkbox
           size="small"
           checked={checked}
           disabled={bulkDisabled}
+          onClick={(event) => event.stopPropagation()}
           onChange={() => onBulkToggle(id)}
           slotProps={{
             input: { 'aria-label': `Include ${name} in bulk selection` },
@@ -50,7 +54,10 @@ export const FileTreeRow = memo(
             size="small"
             aria-label={`${expanded ? 'Collapse' : 'Expand'} ${name}`}
             aria-expanded={expanded}
-            onClick={() => onToggle(id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle(id);
+            }}
             sx={{ width: 28, height: 28, flexShrink: 0 }}
           >
             {expanded ? (
@@ -65,6 +72,7 @@ export const FileTreeRow = memo(
         <ButtonBase
           aria-label={`${name} ${type}`}
           aria-pressed={selected}
+          aria-expanded={type === 'folder' ? expanded : undefined}
           onClick={() => onSelect(id)}
           sx={{
             flex: 1,

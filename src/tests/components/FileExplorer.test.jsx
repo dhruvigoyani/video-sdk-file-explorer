@@ -69,7 +69,7 @@ describe('File explorer tree', () => {
     expect(screen.getByRole('status')).toHaveTextContent('No item selected');
   });
 
-  it('selects files and folders independently of expansion without changing SDK data', async () => {
+  it('expands folders from their names and selects items without changing SDK data', async () => {
     const user = userEvent.setup();
     const sdk = renderExplorer();
     const original = sdk.getStructure();
@@ -78,9 +78,8 @@ describe('File explorer tree', () => {
       screen.getByRole('button', { name: 'Documents folder' }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(
-      screen.getByRole('button', { name: 'Expand Documents' }),
+      screen.getByRole('button', { name: 'Collapse Documents' }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Expand Documents' }));
     await user.click(screen.getByRole('button', { name: 'Resume.pdf file' }));
     expect(
       screen.getByRole('button', { name: 'Documents folder' }),

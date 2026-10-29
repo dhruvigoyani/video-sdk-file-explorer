@@ -31,6 +31,50 @@ afterEach(() => {
 });
 
 describe('Multi-selection and atomic bulk deletion', () => {
+  it('selects and clears nested descendants without expanding folders', async () => {
+    const { sdk, user } = setup();
+    act(() => {
+      const folder = sdk.createFolder('documents', 'Nested');
+      sdk.createFile(folder.id, 'Nested.txt');
+    });
+    await user.click(checkbox('Documents'));
+    expect(
+      screen.getByRole('button', { name: 'Expand Documents' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Documents folder' }));
+    expect(checkbox('Resume.pdf')).toBeChecked();
+    expect(checkbox('Project Plan.docx')).toBeChecked();
+    expect(checkbox('Nested')).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Nested folder' }));
+    expect(checkbox('Nested.txt')).toBeChecked();
+    await user.click(checkbox('Documents'));
+    for (const name of [
+      'Documents',
+      'Resume.pdf',
+      'Project Plan.docx',
+      'Nested',
+      'Nested.txt',
+    ]) {
+      expect(checkbox(name)).not.toBeChecked();
+    }
+    expect(
+      screen.getByRole('button', { name: 'Collapse Documents' }),
+    ).toBeInTheDocument();
+  });
+
+  it('excludes deselected children from bulk deletion through their ancestors', async () => {
+    const { sdk, user } = setup();
+    await user.click(checkbox('Documents'));
+    await user.click(screen.getByRole('button', { name: 'Documents folder' }));
+    await user.click(checkbox('Resume.pdf'));
+    expect(checkbox('Documents')).not.toBeChecked();
+    expect(checkbox('Project Plan.docx')).toBeChecked();
+    await confirm(user);
+    expect(sdk.getItem('documents')).not.toBeNull();
+    expect(sdk.getItem('resume')).not.toBeNull();
+    expect(sdk.getItem('project-plan')).toBeNull();
+  });
+
   it('allows independent selection and deselection without changing the focused item or SDK', async () => {
     const { sdk, user } = setup();
     const before = sdk.getStructure();
@@ -40,10 +84,10 @@ describe('Multi-selection and atomic bulk deletion', () => {
     ).toBeDisabled();
     await user.click(checkbox('Documents'));
     await user.click(checkbox('Notes.txt'));
-    expect(screen.getByText('2 selected for bulk actions')).toBeInTheDocument();
+    expect(screen.getByText('4 selected for bulk actions')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('No item selected');
     await user.click(checkbox('Notes.txt'));
-    expect(screen.getByText('1 selected for bulk actions')).toBeInTheDocument();
+    expect(screen.getByText('3 selected for bulk actions')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Clear selection' }));
     expect(checkbox('Documents')).not.toBeChecked();
     expect(sdk.getStructure()).toEqual(before);
@@ -119,7 +163,7 @@ describe('Multi-selection and atomic bulk deletion', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Bulk deletion failed');
     expect(checkbox('Documents')).toBeChecked();
     expect(checkbox('Notes.txt')).toBeChecked();
-    expect(screen.getByText('2 selected for bulk actions')).toBeInTheDocument();
+    expect(screen.getByText('4 selected for bulk actions')).toBeInTheDocument();
     expect(sdk.getStructure()).toEqual(before);
     expect(sdk.canUndo()).toBe(false);
     transaction.mockRestore();

@@ -55,14 +55,32 @@ export const FileExplorer = () => {
     });
   }, []);
 
-  const toggleBulkItem = useCallback((id) => {
-    setBulkIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleBulkItem = useCallback(
+    (id) => {
+      setBulkIds((previous) => {
+        const next = new Set(previous);
+        const deselecting = previous.has(id);
+        const pending = [items.get(id)];
+        while (pending.length > 0) {
+          const item = pending.pop();
+          if (!item) continue;
+          if (deselecting) next.delete(item.id);
+          else next.add(item.id);
+          if (item.type === 'folder') pending.push(...item.children);
+        }
+        // A selected ancestor would include this item in bulk deletion.
+        if (deselecting) {
+          let parent = items.get(items.get(id)?.parentId);
+          while (parent) {
+            next.delete(parent.id);
+            parent = items.get(parent.parentId);
+          }
+        }
+        return next;
+      });
+    },
+    [items],
+  );
 
   const selected = items.get(selectedId);
   const selectedLocation = useMemo(() => {
