@@ -1,75 +1,14 @@
-:root {
-  font-family: Arial, sans-serif;
-  color: #222;
-  background-color: #fff;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-main {
-  padding: 2rem;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-}
-
-button:focus-visible {
-  outline: 2px solid #205ecf;
-  outline-offset: 2px;
+html {
+  min-width: 320px;
 }
 
 .file-tree,
 .file-tree ul {
   list-style: none;
   margin: 0;
-  padding-left: 1.5rem;
+  padding-left: 1.25rem;
 }
 
 .file-tree {
   padding-left: 0;
-}
-
-.file-tree-row {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin: 0.25rem 0;
-}
-
-.folder-toggle,
-.folder-toggle-spacer {
-  width: 2rem;
-  flex-shrink: 0;
-}
-
-.folder-toggle,
-.file-tree-item {
-  border: 1px solid #ccc;
-  border-radius: 0.25rem;
-  background: #fff;
-  padding: 0.4rem;
-}
-
-.file-tree-item {
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-
-.file-tree-item[aria-pressed='true'] {
-  background: #e8efff;
-  border-color: #205ecf;
-}
-
-.item-type {
-  margin-left: 0.75rem;
-  font-size: 0.8rem;
-  color: #555;
 }

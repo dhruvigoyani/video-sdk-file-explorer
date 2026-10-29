@@ -1,39 +1,90 @@
 import { memo } from 'react';
+import { Box, ButtonBase, Chip, IconButton, Typography } from '@mui/material';
+import ChevronRightRounded from '@mui/icons-material/ChevronRightRounded';
+import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
+import FolderRounded from '@mui/icons-material/FolderRounded';
+import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
+import InsertDriveFileOutlined from '@mui/icons-material/InsertDriveFileOutlined';
 
-export const FileTreeRow = memo(function FileTreeRow({
-  id,
-  name,
-  type,
-  expanded,
-  selected,
-  onToggle,
-  onSelect,
-}) {
-  return (
-    <div className="file-tree-row">
-      {type === 'folder' ? (
-        <button
-          type="button"
-          className="folder-toggle"
-          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${name}`}
-          aria-expanded={expanded}
-          onClick={() => onToggle(id)}
+export const FileTreeRow = memo(
+  ({ id, name, type, expanded, selected, onToggle, onSelect }) => {
+    const ItemIcon =
+      type === 'folder'
+        ? expanded
+          ? FolderOpenRounded
+          : FolderRounded
+        : InsertDriveFileOutlined;
+
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, my: 0.25 }}>
+        {type === 'folder' ? (
+          <IconButton
+            size="small"
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${name}`}
+            aria-expanded={expanded}
+            onClick={() => onToggle(id)}
+            sx={{ width: 28, height: 28, flexShrink: 0 }}
+          >
+            {expanded ? (
+              <ExpandMoreRounded fontSize="small" />
+            ) : (
+              <ChevronRightRounded fontSize="small" />
+            )}
+          </IconButton>
+        ) : (
+          <Box aria-hidden="true" sx={{ width: 28, flexShrink: 0 }} />
+        )}
+        <ButtonBase
+          aria-label={`${name} ${type}`}
+          aria-pressed={selected}
+          onClick={() => onSelect(id)}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            justifyContent: 'flex-start',
+            gap: 1.5,
+            p: 1,
+            borderRadius: 1.5,
+            bgcolor: selected ? '#eeebfc' : 'transparent',
+            color: selected ? 'primary.main' : 'text.primary',
+            '&:hover': { bgcolor: selected ? '#e7e1fa' : '#f6f7fb' },
+          }}
         >
-          <span aria-hidden="true">{expanded ? '−' : '+'}</span>
-        </button>
-      ) : (
-        <span className="folder-toggle-spacer" aria-hidden="true" />
-      )}
-      <button
-        type="button"
-        className="file-tree-item"
-        aria-label={`${name} ${type}`}
-        aria-pressed={selected}
-        onClick={() => onSelect(id)}
-      >
-        {name}
-        <span className="item-type">{type}</span>
-      </button>
-    </div>
-  );
-});
+          <ItemIcon
+            sx={{
+              fontSize: 23,
+              flexShrink: 0,
+              color: type === 'folder' ? '#b87e21' : '#777f9e',
+            }}
+          />
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{
+              textAlign: 'left',
+              fontWeight: selected ? 600 : 500,
+              overflowWrap: 'anywhere',
+              minWidth: 0,
+            }}
+          >
+            {name}
+          </Typography>
+          <Chip
+            label={type}
+            size="small"
+            sx={{
+              ml: 'auto',
+              height: 22,
+              fontSize: '0.65rem',
+              bgcolor: selected ? '#e2dcf8' : '#f0f2f7',
+              color: 'text.secondary',
+              flexShrink: 0,
+            }}
+          />
+        </ButtonBase>
+      </Box>
+    );
+  },
+);
+
+FileTreeRow.displayName = 'FileTreeRow';

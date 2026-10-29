@@ -1,11 +1,11 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion and single-item selection. Action controls, search controls, and panels will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, and create, rename, move, and delete controls. Search controls and panels will follow in later commits.
 
 ## Technology stack
 
 - React 18 and JavaScript
-- Vite and CSS
+- Vite, Material UI, Emotion, and CSS
 - Vitest, React Testing Library, jest-dom, user-event, and jsdom
 
 ## Installation
@@ -42,6 +42,8 @@ React integration tests cover initial state, SDK-driven updates, undo/redo,
 subscription cleanup, StrictMode, SDK replacement, and invalid hook usage.
 Tree tests cover recursive expansion, selection, keyboard buttons, SDK-driven
 updates, deletion cleanup, and restoration through undo/redo.
+Action tests cover creation, renaming, moving, deletion confirmation,
+cancellation, validation errors, and stale-form cleanup.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -301,9 +303,46 @@ DOM changes. Search controls are not implemented yet, so search-query rendering
 observations will be added with that UI. Tree state stays inside `FileExplorer`
 instead of updating the provider or the rest of the app for every selection.
 
-This phase has no custom initial-data input or bonus features. Mutation controls,
-search controls, details and activity panels, and undo/redo buttons are not
-implemented yet.
+## File action controls
+
+`FileActions` presents New file, New folder, Rename, Move, and Delete buttons
+with inline forms. New items are created inside the selected folder, beside the
+selected file, or in the root when nothing is selected. Successful creation
+selects the new item and expands its ancestor folders. Move preserves selection
+and expands the destination's ancestors. New folders themselves start collapsed.
+
+Rename, Move, and Delete require a selection. Root renaming is allowed, while
+root Move and Delete are disabled. Moving uses a folder dropdown with full
+locations returned by SDK search, including collapsed and nested folders. The
+SDK validates destination conflicts and circular moves; React does not duplicate
+those rules. Delete shows an inline confirmation before calling the SDK and
+warns that deleting a folder also removes its descendants.
+
+Each submission calls the SDK synchronously. Its subscription updates the tree;
+React does not manually edit the file snapshot. Errors appear as alerts while
+preserving the current input and selection for correction. Success or Cancel
+closes the form. Changing selection or deleting the selected target externally
+also closes it, preventing a draft from being applied to another item. Draft
+input and errors stay inside `FileActions`, so typing does not rerender the tree.
+The current SDK has no asynchronous operations, so no artificial pending state
+or delay is introduced.
+
+This phase has no custom initial-data input or bonus features. Search controls,
+details and activity panels, and undo/redo buttons are not implemented yet.
+
+## Styling
+
+Material UI provides the responsive layout, buttons, form inputs, alerts, and
+file/folder icons. `src/theme.js` defines the shared colors, typography, and
+component defaults. `App` installs the theme and CSS baseline; `src/index.css`
+only handles the nested tree lists and minimum viewport width. Fonts use a
+system stack and require no external font download.
+
+React and React DOM remain pinned to 18.3.1. `react-is` is also pinned and
+overridden to 18.3.1, following the
+[Material UI React 18 installation guidance](https://mui.com/material-ui/getting-started/installation/#react-18-and-below).
+The styling update preserves SDK behavior, accessible control names, native
+destination selection, and the existing feature scope.
 
 ## Formatting and Git hooks
 

@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { FileExplorerContext } from '../context/FileExplorerContext.js';
 
-export function useFileExplorer() {
+export const useFileExplorer = () => {
   const context = useContext(FileExplorerContext);
 
   if (context === null) {
@@ -11,4 +11,4 @@ export function useFileExplorer() {
   }
 
   return context;
-}
+};

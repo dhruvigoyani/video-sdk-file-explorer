@@ -1,12 +1,12 @@
 import { FileTreeRow } from './FileTreeRow.jsx';
 
-export function FileTree({
+export const FileTree = ({
   node,
   expandedIds,
   selectedId,
   onToggle,
   onSelect,
-}) {
+}) => {
   console.log('FileTree render:', node.id);
 
   const expanded = node.type === 'folder' && expandedIds.has(node.id);
@@ -38,4 +38,4 @@ export function FileTree({
       )}
     </li>
   );
-}
+};

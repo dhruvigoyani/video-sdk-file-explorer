@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { FileExplorerContext } from './FileExplorerContext.js';
 
-function readSnapshot(sdk) {
+const readSnapshot = (sdk) => {
   return {
     sdk,
     structure: sdk.getStructure(),
     canUndo: sdk.canUndo(),
     canRedo: sdk.canRedo(),
   };
-}
+};
 
-export function FileExplorerProvider({ sdk, children }) {
+export const FileExplorerProvider = ({ sdk, children }) => {
   const [snapshot, setSnapshot] = useState(() => readSnapshot(sdk));
 
   useEffect(() => {
@@ -27,4 +27,4 @@ export function FileExplorerProvider({ sdk, children }) {
       {children}
     </FileExplorerContext.Provider>
   );
-}
+};
