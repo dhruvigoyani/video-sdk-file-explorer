@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, create, rename, move, and delete controls, searchable results with filtering, sorting, and pagination, and a selected-item details panel. The activity panel will follow in a later commit.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, create, rename, move, and delete controls, searchable results with filtering, sorting, and pagination, a selected-item details panel, recent activity, and undo/redo controls.
 
 ## Technology stack
 
@@ -48,6 +48,8 @@ Search UI tests cover controls, pagination boundaries and resets, result
 selection, mutation-driven updates, error recovery, and isolated rendering.
 Details tests cover file, folder, and root metadata, tree and search selection,
 ancestor changes, undo/redo updates, and deletion cleanup.
+History and activity UI tests cover button availability, subtree restoration,
+branching, historical names, retention, failures, StrictMode, and SDK replacement.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -245,7 +247,7 @@ SDK. Consumers must unsubscribe when they no longer need updates.
 
 The entry point creates one SDK instance outside the React render lifecycle and
 passes it to `FileExplorerProvider`. SDK changes update a shared read snapshot
-containing `{ sdk, structure, canUndo, canRedo }`. Consumers access this value
+containing `{ sdk, structure, canUndo, canRedo, activity }`. Consumers access this value
 through `useFileExplorer()`; using the hook outside the provider throws a
 descriptive error.
 
@@ -267,7 +269,7 @@ adds one reconciliation update on setup; ordinary parent rerenders keep the same
 context value until the next SDK notification. StrictMode's effect replay cleans
 up the previous listener before reconnecting.
 
-React stores only the SDK's detached read snapshot here; all file-management
+React stores the SDK's detached read snapshot and a recent activity list here; all file-management
 operations still run through the SDK. Consumers should treat snapshots as
 read-only and handle SDK errors where actions are initiated. The provider does
 not expose setters or duplicate validation, history, or search logic.
@@ -373,8 +375,30 @@ the data without automatically reselecting the deleted item.
 Only actual in-memory metadata is shown; file sizes, timestamps, and file content
 are not simulated. Viewing details does not change SDK state or history.
 
-This phase has no custom initial-data input or bonus features. The activity panel
-and undo/redo buttons are not implemented yet.
+## History controls and activity
+
+`HistoryControls` calls `sdk.undo()` and `sdk.redo()` directly and derives disabled
+states from the provider's `canUndo` and `canRedo` values. Successful history
+changes update the tree, details, search, and activity through the existing SDK
+subscription. Synchronous errors appear as alerts and can be retried. No separate
+React undo stack or artificial loading state is introduced.
+
+`ActivityPanel` shows the latest 20 SDK change events in reverse chronological
+order. Activity is UI state recorded by the provider's existing subscription;
+the panel creates no additional subscription. Each mutation records the operation,
+item ID, and name at that point in time. Deleted item names come from the prior
+read snapshot. Deleting an entire subtree creates one entry. Undo and redo have
+their own entries rather than removing earlier activity records, so activity
+remains a log of what happened even after branching clears redo history.
+
+Reads, selection, expansion, search changes, failed operations, and no-op
+mutations do not create entries. The panel starts empty, does not reconstruct
+operations performed before subscription, and resets when the provider receives
+a different SDK instance. Activity is not persisted and is independent of the
+SDK's undo history; limiting it to 20 entries does not limit undo availability.
+
+This phase has no custom initial-data input or bonus features. Atomic transactions
+and multi-selection remain unimplemented. The SDK remains independent of React.
 
 ## Styling
 

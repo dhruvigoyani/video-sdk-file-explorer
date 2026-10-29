@@ -4,6 +4,8 @@ import { FileTree } from './FileTree.jsx';
 import { FileActions } from './FileActions.jsx';
 import { SearchPanel } from '../Search/SearchPanel.jsx';
 import { DetailsPanel } from '../DetailsPanel/DetailsPanel.jsx';
+import { ActivityPanel } from '../ActivityPanel/ActivityPanel.jsx';
+import { HistoryControls } from '../common/HistoryControls.jsx';
 import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 
@@ -105,11 +107,21 @@ export const FileExplorer = () => {
       </Stack>
       <Divider />
       <Box sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
-        <FileActions
-          key={selected?.id ?? 'no-selection'}
-          selected={selected}
-          onReveal={revealItem}
-        />
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1.5}
+          sx={{
+            justifyContent: 'space-between',
+            alignItems: { md: 'flex-start' },
+          }}
+        >
+          <FileActions
+            key={selected?.id ?? 'no-selection'}
+            selected={selected}
+            onReveal={revealItem}
+          />
+          <HistoryControls />
+        </Stack>
       </Box>
       <Divider />
       <Box
@@ -161,6 +173,8 @@ export const FileExplorer = () => {
       </Box>
       <Divider />
       <SearchPanel selectedId={selected?.id ?? null} onSelect={revealItem} />
+      <Divider />
+      <ActivityPanel />
       <Divider />
       <Typography
         role="status"
