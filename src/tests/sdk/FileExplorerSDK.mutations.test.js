@@ -77,7 +77,17 @@ describe('FileExplorerSDK mutations', () => {
     expect(sdk.getStructure().children.map((item) => item.id)).toEqual([
       'images',
     ]);
-    expect(sdk.getStructure().children[0].children[2].id).toBe('documents');
+    const movedFolder = sdk
+      .getStructure()
+      .children[0].children.find((item) => item.id === 'documents');
+    expect(movedFolder).toMatchObject({
+      id: 'documents',
+      parentId: 'images',
+      children: expect.arrayContaining([
+        expect.objectContaining({ id: 'notes' }),
+        { ...child, children: [nested] },
+      ]),
+    });
   });
 
   it('treats moving to the current parent as a harmless no-op', () => {

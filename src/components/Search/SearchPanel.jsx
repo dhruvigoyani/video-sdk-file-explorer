@@ -12,7 +12,6 @@ import { SearchResults } from './SearchResults.jsx';
 
 export const SearchPanel = ({ selectedId, onSelect }) => {
   const { sdk, structure } = useFileExplorer();
-  console.log(sdk, structure);
   const [query, setQuery] = useState('');
   const [type, setType] = useState('all');
   const [sortBy, setSortBy] = useState('name');

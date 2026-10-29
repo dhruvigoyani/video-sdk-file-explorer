@@ -165,9 +165,9 @@ describe('React SDK integration', () => {
     });
     const read = vi.spyOn(sdk, 'getStructure');
     const { unmount } = render(
-        <FileExplorerProvider sdk={sdk}>
-          <SnapshotView />
-        </FileExplorerProvider>,
+      <FileExplorerProvider sdk={sdk}>
+        <SnapshotView />
+      </FileExplorerProvider>,
     );
     expect(active.size).toBe(1);
     read.mockClear();

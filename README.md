@@ -1,6 +1,11 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, create, rename, move, and delete controls, searchable results with filtering, sorting, and pagination, a selected-item details panel, recent activity, and undo/redo controls.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, active-item and bulk selection, create, rename, move, and delete controls, searchable results with filtering, sorting, and pagination, a selected-item details panel, recent activity, and undo/redo controls.
+
+Assignment requirements are in [REQUIREMENT.md](./REQUIREMENT.md). See the
+[submission review](./docs/SUBMISSION_REVIEW.md) for the feature-to-test mapping
+and manual verification steps. Features are implemented; test execution,
+production-build validation, and browser rendering observations remain pending.
 
 ## Technology stack
 
@@ -28,6 +33,17 @@ npm run dev
 npm test
 npm run test:watch
 ```
+
+For a focused suite, pass its path, for example:
+
+```sh
+npm test -- src/tests/sdk/FileExplorerSDK.transactions.test.js
+npm test -- src/tests/components/BulkActions.test.jsx
+```
+
+On Windows with PowerShell script execution restrictions, use `npm.cmd` instead
+of `npm`. Tests and production builds have not been run automatically during
+implementation. The commands above are provided for manual verification.
 
 SDK foundation tests cover the sample hierarchy, identifiers, retrieval, invalid
 IDs, defensive copies, and independent instances. Mutation tests cover file and
@@ -269,7 +285,9 @@ cleanup, and reconnects if that instance changes. It also refreshes after
 subscribing to catch changes between the initial render and effect setup. This
 adds one reconciliation update on setup; ordinary parent rerenders keep the same
 context value until the next SDK notification. StrictMode's effect replay cleans
-up the previous listener before reconnecting.
+up the previous listener before reconnecting when StrictMode is enabled. The
+current entry point does not wrap the application in StrictMode; the integration
+tests include an explicit StrictMode wrapper to exercise effect replay.
 
 React stores the SDK's detached read snapshot and a recent activity list here; all file-management
 operations still run through the SDK. Consumers should treat snapshots as
@@ -305,7 +323,7 @@ can still compare equal. No custom deep comparisons or structural-sharing
 library is needed.
 
 Use the browser console while expanding, selecting, renaming, creating, and
-deleting through the SDK to observe the recursive logs. Development StrictMode
+deleting through the UI to observe the recursive logs. When enabled, development StrictMode
 may log render calls more than once; logs reflect render attempts rather than
 DOM changes. Search input state stays inside `SearchPanel`, so typing or changing
 search options does not rerender the recursive tree. Selecting a search result
@@ -476,6 +494,30 @@ bulk checkboxes are available in the tree.
 Completed bonuses: SDK atomic transactions and React multi-selection with atomic
 bulk deletion. Custom initial-data input is not supported. The SDK remains
 independent of React.
+
+## Known limitations and verification status
+
+- The file system, history, and activity live in memory and reset on refresh.
+  There is no disk access, backend, persistence, upload, or file-content editing.
+- Each SDK instance starts with the fixed sample hierarchy. Names use trimmed,
+  case-insensitive comparison, and generated IDs are unique within an instance,
+  not a shared namespace across instances.
+- History has no size limit. Snapshots copy the complete map, and transactions
+  temporarily retain draft history. Tree rendering is recursive and is not
+  virtualized; very large or deeply nested trees are not a performance target.
+- Activity keeps only the latest 20 observed events. It is not a persistent
+  audit trail and does not reconstruct changes made before subscription.
+- SDK operations and transactions are synchronous. Subscribers should be
+  synchronous observers; asynchronous callback failures and mutations initiated
+  from listeners are not coordinated by the SDK.
+- Transactions accept mutation descriptors, not callbacks or nested transactions.
+  Newly generated IDs are available after commit, without result-reference syntax.
+- Bulk selection is exposed in the tree. Details and single-item actions use
+  the separate active selection. There are no bulk rename or move operations.
+- Runtime tests, the production build, browser interaction checks, and measured
+  render observations remain to be verified manually. The checklist distinguishes
+  expected behavior from observations. No feature beyond this assignment is
+  required to complete that verification.
 
 ## Styling
 
