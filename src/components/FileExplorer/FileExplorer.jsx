@@ -3,6 +3,7 @@ import { useFileExplorer } from '../../hooks/useFileExplorer.js';
 import { FileTree } from './FileTree.jsx';
 import { FileActions } from './FileActions.jsx';
 import { SearchPanel } from '../Search/SearchPanel.jsx';
+import { DetailsPanel } from '../DetailsPanel/DetailsPanel.jsx';
 import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 
@@ -47,6 +48,15 @@ export const FileExplorer = () => {
   }, []);
 
   const selected = items.get(selectedId);
+  const selectedLocation = useMemo(() => {
+    const names = [];
+    let item = selected;
+    while (item) {
+      names.push(item.name);
+      item = items.get(item.parentId);
+    }
+    return names.reverse().join(' / ');
+  }, [selected, items]);
 
   const revealItem = (item) => {
     setSelectedId(item.id);
@@ -104,35 +114,50 @@ export const FileExplorer = () => {
       <Divider />
       <Box
         sx={{
-          px: { xs: 1.5, sm: 3 },
-          pt: 1.5,
-          pb: 3,
-          minHeight: 300,
-          overflowX: 'auto',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            md: 'minmax(0, 1fr) minmax(240px, 320px)',
+          },
         }}
       >
-        <Typography
-          variant="overline"
-          color="text.secondary"
+        <Box
           sx={{
-            display: 'block',
-            px: 1,
-            mb: 1,
-            fontSize: '0.65rem',
-            letterSpacing: 1.5,
+            px: { xs: 1.5, sm: 3 },
+            pt: 1.5,
+            pb: 3,
+            minHeight: 300,
+            overflowX: 'auto',
           }}
         >
-          Name
-        </Typography>
-        <ul className="file-tree" aria-label="Files">
-          <FileTree
-            node={structure}
-            expandedIds={expandedIds}
-            selectedId={selected?.id ?? null}
-            onToggle={toggleFolder}
-            onSelect={setSelectedId}
-          />
-        </ul>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{
+              display: 'block',
+              px: 1,
+              mb: 1,
+              fontSize: '0.65rem',
+              letterSpacing: 1.5,
+            }}
+          >
+            Name
+          </Typography>
+          <ul className="file-tree" aria-label="Files">
+            <FileTree
+              node={structure}
+              expandedIds={expandedIds}
+              selectedId={selected?.id ?? null}
+              onToggle={toggleFolder}
+              onSelect={setSelectedId}
+            />
+          </ul>
+        </Box>
+        <DetailsPanel
+          item={selected}
+          location={selectedLocation}
+          parentName={items.get(selected?.parentId)?.name}
+        />
       </Box>
       <Divider />
       <SearchPanel selectedId={selected?.id ?? null} onSelect={revealItem} />

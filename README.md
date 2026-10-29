@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, create, rename, move, and delete controls, and searchable results with filtering, sorting, and pagination. Details and activity panels will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, create, rename, move, and delete controls, searchable results with filtering, sorting, and pagination, and a selected-item details panel. The activity panel will follow in a later commit.
 
 ## Technology stack
 
@@ -46,6 +46,8 @@ Action tests cover creation, renaming, moving, deletion confirmation,
 cancellation, validation errors, and stale-form cleanup.
 Search UI tests cover controls, pagination boundaries and resets, result
 selection, mutation-driven updates, error recovery, and isolated rendering.
+Details tests cover file, folder, and root metadata, tree and search selection,
+ancestor changes, undo/redo updates, and deletion cleanup.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -352,8 +354,27 @@ input and pagination. Search selection and tree selection highlight the same
 item. Search typing and option changes are local to the search panel and do not
 change SDK data, add history, or rerender the tree.
 
-This phase has no custom initial-data input or bonus features. Details and
-activity panels and undo/redo buttons are not implemented yet.
+## Selected-item details
+
+`DetailsPanel` displays the selected item's name, type, ID, parent folder name,
+parent ID, and full location using a semantic definition list. The root explicitly
+shows that it has no parent. With no selection, the panel prompts the user to
+select a file or folder. The panel sits beside the tree on desktop and stacks
+below it on smaller screens; long names and paths wrap within the panel.
+
+The panel receives display props from `FileExplorer` and adds no subscriptions
+or independent selection state. Names, parent information, and the display path
+are derived from the current SDK snapshot. Tree and search selection therefore
+show the same details. Renaming or moving an item or its ancestors refreshes the
+panel, as do undo and redo. Collapsing an ancestor leaves selection and details
+intact. Deleting the selected item or an ancestor clears details; undo restores
+the data without automatically reselecting the deleted item.
+
+Only actual in-memory metadata is shown; file sizes, timestamps, and file content
+are not simulated. Viewing details does not change SDK state or history.
+
+This phase has no custom initial-data input or bonus features. The activity panel
+and undo/redo buttons are not implemented yet.
 
 ## Styling
 

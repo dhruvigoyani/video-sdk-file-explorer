@@ -8,9 +8,7 @@ import './index.css';
 const sdk = new FileExplorerSDK();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  // <React.StrictMode>
     <FileExplorerProvider sdk={sdk}>
       <App />
     </FileExplorerProvider>
-  // </React.StrictMode>,
 );
