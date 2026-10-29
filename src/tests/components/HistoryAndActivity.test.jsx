@@ -48,9 +48,6 @@ describe('History controls and recent activity', () => {
     await user.click(screen.getByRole('button', { name: 'Undo', exact: true }));
     expect(sdk.getItem('notes').name).toBe('Notes.txt');
     expect(
-      screen.getByRole('button', { name: 'Notes.txt file' }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
       within(screen.getByRole('region', { name: 'Item details' })).getByText(
         'Notes.txt',
       ),
@@ -63,9 +60,6 @@ describe('History controls and recent activity', () => {
       screen.getByRole('button', { name: 'Redo', exact: true }),
     ).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Redo', exact: true }));
-    expect(
-      screen.getByRole('button', { name: 'Todo.txt file' }),
-    ).toHaveAttribute('aria-pressed', 'true');
     expect(
       screen.getByRole('button', { name: 'Select Todo.txt from search' }),
     ).toBeInTheDocument();

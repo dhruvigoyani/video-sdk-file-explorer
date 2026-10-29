@@ -77,6 +77,7 @@ describe('Selected item details', () => {
     );
     expect(field('Name')).toHaveTextContent('Logo.svg');
     expect(field('Location')).toHaveTextContent('My Files / Images / Logo.svg');
+    await user.click(screen.getByRole('button', { name: 'Close search' }));
     await user.click(screen.getByRole('button', { name: 'Collapse Images' }));
     expect(field('ID')).toHaveTextContent('logo');
     expect(

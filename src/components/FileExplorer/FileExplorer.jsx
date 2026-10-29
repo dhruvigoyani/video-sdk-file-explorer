@@ -137,66 +137,82 @@ export const FileExplorer = () => {
           />
           <HistoryControls />
         </Stack>
-        <BulkActions
-          key={[...bulkIds].sort().join('|')}
-          selectedIds={bulkIds}
-          items={items}
-          onClear={() => setBulkIds(new Set())}
-        />
       </Box>
       <Divider />
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'minmax(0, 1fr)',
-            md: 'minmax(0, 1fr) minmax(240px, 320px)',
-          },
-        }}
-      >
-        <Box
-          sx={{
-            px: { xs: 1.5, sm: 3 },
-            pt: 1.5,
-            pb: 3,
-            minHeight: 300,
-            overflowX: 'auto',
-          }}
-        >
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{
-              display: 'block',
-              px: 1,
-              mb: 1,
-              fontSize: '0.65rem',
-              letterSpacing: 1.5,
-            }}
-          >
-            Name
-          </Typography>
-          <ul className="file-tree" aria-label="Files">
-            <FileTree
-              node={structure}
-              expandedIds={expandedIds}
-              selectedId={selected?.id ?? null}
-              bulkIds={bulkIds}
-              onBulkToggle={toggleBulkItem}
-              onToggle={toggleFolder}
-              onSelect={setSelectedId}
-            />
-          </ul>
-        </Box>
-        <DetailsPanel
-          item={selected}
-          location={selectedLocation}
-          parentName={items.get(selected?.parentId)?.name}
-        />
-      </Box>
-      <Divider />
-      <SearchPanel selectedId={selected?.id ?? null} onSelect={revealItem} />
-      <Divider />
+      <SearchPanel selectedId={selected?.id ?? null} onSelect={revealItem}>
+        {({ searchResults, searching, type, sortBy, sortOrder }) => (
+          <>
+            <Box sx={{ px: { xs: 2, sm: 3 }, pb: 2 }}>
+              <BulkActions
+                key={[...bulkIds].sort().join('|')}
+                selectedIds={bulkIds}
+                items={items}
+                onClear={() => setBulkIds(new Set())}
+              />
+            </Box>
+            <Divider />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  md: 'minmax(0, 1fr) minmax(240px, 320px)',
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  px: { xs: 1.5, sm: 3 },
+                  pt: 1.5,
+                  pb: 3,
+                  minHeight: 300,
+                  overflowX: 'auto',
+                }}
+              >
+                {searching ? (
+                  searchResults
+                ) : (
+                  <>
+                    <Typography
+                      variant="overline"
+                      color="text.secondary"
+                      sx={{
+                        display: 'block',
+                        px: 1,
+                        mb: 1,
+                        fontSize: '0.65rem',
+                        letterSpacing: 1.5,
+                      }}
+                    >
+                      Name
+                    </Typography>
+                    <ul className="file-tree" aria-label="Files">
+                      <FileTree
+                        node={structure}
+                        filterType={type}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        expandedIds={expandedIds}
+                        selectedId={selected?.id ?? null}
+                        bulkIds={bulkIds}
+                        onBulkToggle={toggleBulkItem}
+                        onToggle={toggleFolder}
+                        onSelect={setSelectedId}
+                      />
+                    </ul>
+                  </>
+                )}
+              </Box>
+              <DetailsPanel
+                item={selected}
+                location={selectedLocation}
+                parentName={items.get(selected?.parentId)?.name}
+              />
+            </Box>
+            <Divider />
+          </>
+        )}
+      </SearchPanel>
       <ActivityPanel />
       <Divider />
       <Typography
