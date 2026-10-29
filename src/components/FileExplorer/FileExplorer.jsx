@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFileExplorer } from '../../hooks/useFileExplorer.js';
 import { FileTree } from './FileTree.jsx';
 import { FileActions } from './FileActions.jsx';
+import { SearchPanel } from '../Search/SearchPanel.jsx';
 import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 import FolderOpenRounded from '@mui/icons-material/FolderOpenRounded';
 
@@ -133,6 +134,8 @@ export const FileExplorer = () => {
           />
         </ul>
       </Box>
+      <Divider />
+      <SearchPanel selectedId={selected?.id ?? null} onSelect={revealItem} />
       <Divider />
       <Typography
         role="status"

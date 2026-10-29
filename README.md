@@ -1,6 +1,6 @@
 # VideoSDK File Explorer
 
-A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, and create, rename, move, and delete controls. Search controls and panels will follow in later commits.
+A React application backed by a standalone, in-memory JavaScript file explorer SDK. The SDK provides the sample hierarchy, read APIs, validated create, rename, move, and delete operations, search with filtering, sorting, and pagination, undo/redo, and change subscriptions. The React application displays a recursive file tree with folder expansion, single-item selection, create, rename, move, and delete controls, and searchable results with filtering, sorting, and pagination. Details and activity panels will follow in later commits.
 
 ## Technology stack
 
@@ -44,6 +44,8 @@ Tree tests cover recursive expansion, selection, keyboard buttons, SDK-driven
 updates, deletion cleanup, and restoration through undo/redo.
 Action tests cover creation, renaming, moving, deletion confirmation,
 cancellation, validation errors, and stale-form cleanup.
+Search UI tests cover controls, pagination boundaries and resets, result
+selection, mutation-driven updates, error recovery, and isolated rendering.
 SDK tests use Vitest's Node
 environment; React tests use the configured jsdom environment.
 
@@ -299,8 +301,9 @@ library is needed.
 Use the browser console while expanding, selecting, renaming, creating, and
 deleting through the SDK to observe the recursive logs. Development StrictMode
 may log render calls more than once; logs reflect render attempts rather than
-DOM changes. Search controls are not implemented yet, so search-query rendering
-observations will be added with that UI. Tree state stays inside `FileExplorer`
+DOM changes. Search input state stays inside `SearchPanel`, so typing or changing
+search options does not rerender the recursive tree. Selecting a search result
+updates shared selection and expansion, which does render the tree. Tree state stays inside `FileExplorer`
 instead of updating the provider or the rest of the app for every selection.
 
 ## File action controls
@@ -327,8 +330,30 @@ input and errors stay inside `FileActions`, so typing does not rerender the tree
 The current SDK has no asynchronous operations, so no artificial pending state
 or delay is introduced.
 
-This phase has no custom initial-data input or bonus features. Search controls,
-details and activity panels, and undo/redo buttons are not implemented yet.
+## Search interface
+
+`SearchPanel` owns query, type filter, sort field, sort direction, page, and page
+size state. It delegates matching, filtering, ordering, pagination, and result
+locations to `sdk.search()`. `SearchResults` displays each item's name, type, and
+full location. Empty and whitespace queries show all items, including the root.
+No matches show an empty state; SDK search errors appear as alerts.
+
+Search runs synchronously as controls change. Results are memoized against the
+controls and SDK snapshot, so they refresh after mutations, undo, and redo.
+There is no debounce or simulated loading state for this in-memory SDK.
+Changing any search control or receiving a new SDK snapshot resets pagination
+to page 1. Page size defaults to 5 with options for 10 or 20; Previous and Next
+buttons are disabled at their boundaries. An empty result set displays page 0
+of 0.
+
+Selecting a result reveals its ancestors in the tree and sets the shared
+selection, enabling the existing file action controls. It preserves search
+input and pagination. Search selection and tree selection highlight the same
+item. Search typing and option changes are local to the search panel and do not
+change SDK data, add history, or rerender the tree.
+
+This phase has no custom initial-data input or bonus features. Details and
+activity panels and undo/redo buttons are not implemented yet.
 
 ## Styling
 
