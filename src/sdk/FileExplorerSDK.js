@@ -137,6 +137,47 @@ export class FileExplorerSDK {
     return this.#createItem(parentId, name, 'folder');
   }
 
+  transaction(operations) {
+    if (!Array.isArray(operations)) {
+      throw new TypeError('Transaction operations must be an array.');
+    }
+
+    const allowedMethods = [
+      'createFile',
+      'createFolder',
+      'renameItem',
+      'moveItem',
+      'deleteItem',
+    ];
+    const draft = new FileExplorerSDK();
+    draft.#items = new Map(this.#items);
+    draft.#nextId = this.#nextId;
+    const results = [];
+
+    for (const operation of operations) {
+      if (
+        operation === null ||
+        typeof operation !== 'object' ||
+        !allowedMethods.includes(operation.method) ||
+        !Array.isArray(operation.args)
+      ) {
+        throw new TypeError(
+          'Each transaction operation must have a supported mutation method and an args array.',
+        );
+      }
+      results.push(draft[operation.method](...operation.args));
+    }
+
+    if (draft.canUndo()) {
+      this.#recordHistory();
+      this.#items = draft.#items;
+      this.#nextId = draft.#nextId;
+      this.#notifyChange('transaction');
+    }
+
+    return results;
+  }
+
   subscribe(listener) {
     if (typeof listener !== 'function') {
       throw new TypeError('Change listener must be a function.');

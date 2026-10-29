@@ -51,7 +51,9 @@ export const ActivityPanel = () => {
                   ? 'Undid last change'
                   : entry.type === 'redo'
                     ? 'Redid last change'
-                    : `${actionLabels[entry.type]} ${entry.name}`}
+                    : entry.type === 'transaction'
+                      ? 'Committed transaction'
+                      : `${actionLabels[entry.type]} ${entry.name}`}
               </Typography>
               {entry.itemId && (
                 <Typography variant="caption" color="text.secondary">

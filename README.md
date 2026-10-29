@@ -81,6 +81,7 @@ Images (Photo.png and Logo.svg), and Notes.txt.
 | `renameItem(id, name)`         | Item ID and new name                                | A detached copy of the updated item record.                                                                    |
 | `moveItem(id, parentId)`       | Item ID and destination folder ID                   | A detached copy of the updated item record.                                                                    |
 | `deleteItem(id)`               | Item ID                                             | A detached copy of the deleted item record, without descendants. All descendants are also deleted.             |
+| `transaction(operations)`      | Array of `{ method, args }` mutation descriptors    | Detached operation results in execution order. Commits all changes together or throws without changing state.  |
 | `search(query, options)`       | Optional query string and search options            | `{ items, total, page, pageSize, totalPages }`. Each item includes its full display `location`.                |
 | `canUndo()`                    | None                                                | Whether an operation is available to undo.                                                                     |
 | `canRedo()`                    | None                                                | Whether an operation is available to redo.                                                                     |
@@ -178,7 +179,7 @@ sdk.canRedo(); // true
 sdk.redo(); // true; Archive is restored with its original ID
 ```
 
-Each successful state-changing creation, rename, move, or deletion records one
+Each successful state-changing creation, rename, move, deletion, or transaction records one
 snapshot on a private undo stack. A snapshot copies the item `Map`, preserving
 records and insertion order. Records are never edited in place and are never
 exposed directly, so snapshots can safely share unchanged records. Undo moves
@@ -223,9 +224,10 @@ one event, including deleting a folder with descendants. Reads, failed
 operations, no-ops, and empty undo/redo do not notify.
 
 Event `type` is `createFile`, `createFolder`, `renameItem`, `moveItem`,
-`deleteItem`, `undo`, or `redo`. `itemId` identifies the directly affected item
+`deleteItem`, `transaction`, `undo`, or `redo`. `itemId` identifies the directly affected item
 for mutations, including a deleted item. Undo and redo use `itemId: null`, since
-restoring history can affect an entire subtree. Callbacks can read the SDK to
+restoring history can affect an entire subtree. Transactions also use `itemId: null`,
+since they may affect multiple items. Callbacks can read the SDK to
 retrieve the current hierarchy and history availability. Each listener receives
 its own event object, containing no references to SDK state.
 
@@ -397,8 +399,54 @@ operations performed before subscription, and resets when the provider receives
 a different SDK instance. Activity is not persisted and is independent of the
 SDK's undo history; limiting it to 20 entries does not limit undo availability.
 
-This phase has no custom initial-data input or bonus features. Atomic transactions
-and multi-selection remain unimplemented. The SDK remains independent of React.
+## Atomic transactions (completed bonus)
+
+```js
+const results = sdk.transaction([
+  { method: 'renameItem', args: ['notes', 'Todo.txt'] },
+  { method: 'moveItem', args: ['notes', 'documents'] },
+  { method: 'deleteItem', args: ['images'] },
+]);
+
+sdk.undo(); // Restores all three operations together.
+sdk.redo(); // Reapplies the complete transaction.
+```
+
+`transaction(operations)` accepts an array of descriptors. Each descriptor names
+one of `createFile`, `createFolder`, `renameItem`, `moveItem`, or `deleteItem`, and
+provides an `args` array with the same parameters as that public method. Methods
+run sequentially against an isolated draft, so later validation sees earlier
+staged changes. The returned array contains detached method results in the same
+order. Descriptors are synchronous; callbacks, reads, history methods,
+subscriptions, and nested transactions are not supported. New generated IDs are
+returned after commit; descriptors do not provide references to earlier results.
+Use existing parent IDs when creating items within a transaction.
+
+The draft copies the current item map and ID counter and reuses the SDK's
+existing mutation validation. It has no subscribers. If any descriptor is
+invalid or an operation fails, its error propagates and the draft is discarded.
+The live hierarchy, ID counter, undo stack, redo stack, and subscriptions remain
+unchanged. No partial changes or notifications escape.
+
+If at least one operation changes state, the final draft replaces the live map
+and ID counter after one undo snapshot is recorded. Redo history clears and
+subscribers receive exactly one `{ type: 'transaction', itemId: null }` event
+after the complete commit. Undo and redo preserve original IDs and complete
+deleted subtrees. The activity panel shows one "Committed transaction" entry.
+Empty transactions return `[]`; entirely no-op transactions return their results
+without recording history, clearing redo, or notifying. Transactions with
+state-changing intermediate operations still record one entry even if their
+final values equal the starting values.
+
+Draft execution reuses ordinary mutation history internally, favoring simple
+validation reuse over a separate mutation engine. For large batches, these
+temporary snapshots add memory cost; they are discarded after execution. Tests
+cover successful commits, rollback, staged validation, history isolation,
+notifications, defensive results, no-ops, and React activity integration.
+
+Completed bonus: SDK atomic transactions. Multi-selection and bulk-deletion UI
+remain unimplemented. Custom initial-data input is not supported. The SDK remains
+independent of React.
 
 ## Styling
 

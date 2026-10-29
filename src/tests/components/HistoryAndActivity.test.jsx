@@ -177,6 +177,25 @@ describe('History controls and recent activity', () => {
     expect(entries()).toHaveLength(2);
   });
 
+  it('shows one activity entry for a transaction and restores it with one undo', async () => {
+    const { sdk, user } = setup();
+    const before = sdk.getStructure();
+    act(() => {
+      sdk.transaction([
+        { method: 'renameItem', args: ['notes', 'Todo.txt'] },
+        { method: 'deleteItem', args: ['documents'] },
+      ]);
+    });
+    expect(entries()).toHaveLength(1);
+    expect(entries()[0]).toHaveTextContent('Committed transaction');
+    expect(
+      screen.getByRole('button', { name: 'Todo.txt file' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo', exact: true }));
+    expect(sdk.getStructure()).toEqual(before);
+    expect(entries()).toHaveLength(2);
+  });
+
   it('does not duplicate events under StrictMode and resets activity for a new SDK', () => {
     const first = new FileExplorerSDK();
     const second = new FileExplorerSDK();
